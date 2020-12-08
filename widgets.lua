@@ -1,6 +1,6 @@
 -- auto-updater + auto-reloader
     local updaterInfo = {
-        versionLocal = 1.01,
+        versionLocal = 1.02,
         versionOnline = http.Get("https://raw.githubusercontent.com/zer420/Widgets/main/version.txt"),
         sourceOnline = "https://raw.githubusercontent.com/zer420/Widgets/main/widgets.lua",
         workDirectory = "zerlib\\",
@@ -407,6 +407,10 @@
             end;
         end;
 
+        local function getTextCenter(width, text)            
+            return width / 2 - getTextWidth(text) / 2;
+        end;
+
         local function drawTitle(widget, icon, text)
             draw.SetFont(fonts.icon);
             local stringSizeX, stringSizeY = draw.GetTextSize(icon);
@@ -726,7 +730,7 @@
                     specMe = specMe + 1;
                     draw.Color(255, 0, 0, 200);
                 end;
-                draw.Text(spectatorBase.x + 10 * dpi, 34 * dpi + spectatorBase.y + 20 * (i - 1) * dpi, spectator.player:GetName() .. " ➜ " .. spectator.target:GetName());
+                draw.Text(spectatorBase.x + getTextCenter(spectatorBase.width, spectator.player:GetName() .. " ➜ " .. spectator.target:GetName()), 34 * dpi + spectatorBase.y + 20 * (i - 1) * dpi, spectator.player:GetName() .. " ➜ " .. spectator.target:GetName());
                 minWidth = getTextWidth(spectator.player:GetName() .. " ➜ " .. spectator.target:GetName()) > minWidth and getTextWidth(spectator.player:GetName() .. " ➜ " .. spectator.target:GetName()) or minWidth;
             end;
             offset = #spectators * 20 * dpi + 34 * dpi;
@@ -767,12 +771,12 @@
 
         if bombInfo.planting then
             local plantTime = tostring(bombInfo.plantT - common.Time() + 3.125);
-            drawTextColor(bombBase.x + 10 * dpi, bombBase.y + offset, string.format("$c!%s$v! is planting at $c!%s$v! - $c!%.1f", bombInfo.player, bombInfo.plantB, plantTime), bombColor.orange[1], bombColor.orange[2], bombColor.orange[3]);
+            drawTextColor(bombBase.x + getTextCenter(bombBase.width, string.format("%s is planting at B - 0.0", bombInfo.player)), bombBase.y + offset, string.format("$c!%s$v! is planting at $c!%s$v! - $c!%.1f", bombInfo.player, bombInfo.plantB, plantTime), bombColor.orange[1], bombColor.orange[2], bombColor.orange[3]);
             minWidth = getTextWidth(string.format("%s is planting at B - 0.0", bombInfo.player)) > minWidth and getTextWidth(string.format("%s is planting at B - 0.0", bombInfo.player)) or minWidth;
             offset = offset + getTextHeight("A") + 6 * dpi;
         end;
 
-        if entities.FindByClass("CPlantedC4")[1] ~= nil then
+        if entities.FindByClass("CPlantedC4")[1] ~= nil and bombInfo.draw then
             local bombEntity = entities.FindByClass("CPlantedC4")[1];
             local bombTimer = math.floor((bombInfo.plantD - common.Time() + bombEntity:GetProp("m_flTimerLength")) * 10) / 10;
             if bombTimer < 0 then bombTimer = 0 end;
@@ -784,7 +788,7 @@
                 elseif bombTimer <= 10 then
                     tempColor = fadeColor(bombColor.red, bombColor.orange, bombTimer / 10);
                 end;
-                drawTextColor(bombBase.x + 10 * dpi, bombBase.y + offset, string.format("$c!%s$v! - $c!%.1f", bombInfo.plantB, bombTimer), tempColor[1], tempColor[2], tempColor[3]);
+                drawTextColor(bombBase.x + getTextCenter(bombBase.width, "B - 40.0"), bombBase.y + offset, string.format("$c!%s$v! - $c!%.1f", bombInfo.plantB, bombTimer), tempColor[1], tempColor[2], tempColor[3]);
                 offset = offset + getTextHeight("A") + 6 * dpi;
             end;
             if bombInfo.defusing then
@@ -793,14 +797,14 @@
                 if defuseTime > bombTimer then
                     tempColor = bombColor.red;
                 end;
-                drawTextColor(bombBase.x + 10 * dpi, bombBase.y + offset, string.format("$c!%s$v! is defusing - $c!%.1f", bombInfo.player, defuseTime), tempColor[1], tempColor[2], tempColor[3]);
+                drawTextColor(bombBase.x + getTextCenter(bombBase.width, string.format("%s is defusing at B - 0.0", bombInfo.player)), bombBase.y + offset, string.format("$c!%s$v! is defusing - $c!%.1f", bombInfo.player, defuseTime), tempColor[1], tempColor[2], tempColor[3]);
                 offset = offset + getTextHeight("A") + 6 * dpi;
                 minWidth = getTextWidth(string.format("%s is defusing - 10.0", bombInfo.player)) > minWidth and getTextWidth(string.format("%s is defusing - 10.0", bombInfo.player)) or minWidth;
             end;
             --bomb damage
             local bombDamage = math.floor(getBombDamage(bombEntity, entities.GetLocalPlayer()));
             local tempColor = fadeColor({255, 255, 255}, bombColor.red, bombDamage >= entities.GetLocalPlayer():GetHealth() and 1 or (bombDamage / entities.GetLocalPlayer():GetHealth()) );
-            drawTextColor(bombBase.x + 10 * dpi, bombBase.y + offset, string.format("$c!Damage$v! : $c!%s", bombDamage >= entities.GetLocalPlayer():GetHealth() and "LETHAL" or tostring(bombDamage)) , tempColor[1], tempColor[2], tempColor[3]);
+            drawTextColor(bombBase.x + getTextCenter(bombBase.width, string.format("Damage - %s", bombDamage >= entities.GetLocalPlayer():GetHealth() and "LETHAL" or tostring(bombDamage))), bombBase.y + offset, string.format("$c!Damage$v! : $c!%s", bombDamage >= entities.GetLocalPlayer():GetHealth() and "LETHAL" or tostring(bombDamage)) , tempColor[1], tempColor[2], tempColor[3]);
             offset = offset + getTextHeight("A") + 6 * dpi;
         end;
 
