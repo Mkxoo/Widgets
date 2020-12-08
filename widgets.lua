@@ -1,6 +1,6 @@
 -- auto-updater + auto-reloader
     local updaterInfo = {
-        versionLocal = 1.00,
+        versionLocal = 1.01,
         versionOnline = http.Get("https://raw.githubusercontent.com/zer420/Widgets/main/version.txt"),
         sourceOnline = "https://raw.githubusercontent.com/zer420/Widgets/main/widgets.lua",
         workDirectory = "zerlib\\",
@@ -124,12 +124,15 @@
         spectatorSettings = {
             teamOnly = gui.Checkbox(ui.feature.spectatorSettings, "widget.spectator.team", "Team Only", true),
         },
+
         keybindSettings = {
 
-        },        
+        },
+        
         styleSettings = {
             isRounded = gui.Checkbox(ui.style.settings, "widget.border.rounded", "Rounded Borders", true),
             useGradient = gui.Checkbox(ui.style.settings, "widget.border.opacity.gradient", "Opacity Gradient", true),
+            forceResize = gui.Checkbox(ui.style.settings, "widget.border.resize", "Force Resize", false),
         },
     };
 
@@ -170,6 +173,7 @@
             styleSettings = {
                 isRounded = "The corners will be rounded.",
                 useGradient = "The borders will progressively fade out.",
+                forceResize = "Allow manual resize of all widgets.",
             },
         };
     };
@@ -234,10 +238,12 @@
     --
 
     -- widget class
+        local roundedBorderInsideRadius = 5;
+
         local widget = {
             new = function(x, y, width, height, canResize)
                 local self = {
-                    x = x, y = y, width = width, height = height, canResize = canResize ~= nil and canResize, sizeMinX = 50, sizeMinY = 50, sizeMaxX = 300, sizeMaxY = 300,
+                    x = x, y = y, width = width, height = height, canResize = canResize ~= nil and canResize, sizeMinX = 20, sizeMinY = 20, sizeMaxX = 600, sizeMaxY = 600,
                     drawShadow = false, shadowRad = 2, sColor = {0, 0, 0, 120}, gColor = {255, 255, 255, 80}, rColor = {200, 200, 200, 80}, disableAnim = false,
                     rSize = 20, rOutsideRad = 2, mouseDeltaX = 0, mouseDeltaY = 0, g = false, r = false, visible = true, disableXr = false, disableYr = false,
                 };
@@ -317,6 +323,7 @@
                 blue = {0, 135, 255},
         };
 
+
         local function fadeColor(color1, color2, percent)
             return {color1[1] * (1 - percent) + color2[1] * percent,
                 color1[2] * (1-percent) + color2[2] * percent,
@@ -386,6 +393,18 @@
             draw.SetScissorRect(widget.x, widget.y, widget.width, widget.height);
             draw.FilledRect(widget.x, widget.y , widget.x + 2369 , widget.y + 1584);    
             draw.SetTexture(nil);
+        end;
+
+        local function drawResize(widget)
+            if gui.Reference("Menu"):IsActive() then 
+                draw.Color(200, 200, 200, 80);
+                if uiSecondary.styleSettings.isRounded:GetValue() then
+                    draw.Triangle(widget.x + widget.width, widget.y + widget.height, widget.x + widget.width, widget.y + widget.height - (roundedBorderInsideRadius + 5), widget.x + widget.width - (roundedBorderInsideRadius + 5), widget.y + widget.height);
+                else
+                    draw.FilledRect(widget.x + widget.width, widget.y + widget.height - widget.rSize, widget.x + widget.width - widget.rOutsideRad, widget.y + widget.height);
+                    draw.FilledRect(widget.x + widget.width - widget.rSize, widget.y + widget.height, widget.x + widget.width - widget.rOutsideRad, widget.y + widget.height - widget.rOutsideRad);
+                end;
+            end;
         end;
 
         local function drawTitle(widget, icon, text)
@@ -476,7 +495,7 @@
             return {colorId = colorId ~= 0 and colorId or #colorSet, colorPercent = colorPercent,};
         end;    
 
-        local fadeSettings, shift, roundedBorderInsideRadius = {colorSet, borderSize, isRounded, useGradient, opacity, performance, colorShift, colorShiftAmount,}, 0, 5;
+        local fadeSettings, shift = {colorSet, borderSize, isRounded, useGradient, opacity, performance, colorShift, colorShiftAmount,}, 0;
         local function drawFade(x, y, width, height)
             -- color shifting
             if fadeSettings.colorShiftAmount == nil then return; end;
@@ -613,7 +632,7 @@
 --
 
 -- watermark
-    local watermarkBase, watermarkData, spacing = widget.new(200, 200, 550, 80, true), "", 0; watermarkBase.disableAnim = true;
+    local watermarkBase, watermarkData, spacing = widget.new(200, 200, 550 * dpi, 80 * dpi, true), "", 0; watermarkBase.disableAnim = true;
 
     callbacks.Register("Draw", "watermark", function()
         watermarkBase.handler();
@@ -676,23 +695,13 @@
         end;
         spacing, watermarkBase.sizeMinX, watermarkBase.sizeMaxX, watermarkBase.sizeMinY, watermarkBase.disableXr, watermarkBase.visible = (watermarkBase.width - (offset + 10)) / (num + 1), offset + 10, offset * 2 + 20, 30 * dpi, uiSecondary.watermarkSettings.autoWidth:GetValue(), uiSecondary.show.watermark:GetValue();
         
-        -- resize logo
-        if gui.Reference("Menu"):IsActive() then 
-            draw.Color(200, 200, 200, 80);
-            if uiSecondary.styleSettings.isRounded:GetValue() then
-                draw.Triangle(watermarkBase.x + watermarkBase.width, watermarkBase.y + watermarkBase.height, watermarkBase.x + watermarkBase.width, watermarkBase.y + watermarkBase.height - (roundedBorderInsideRadius + 5), watermarkBase.x + watermarkBase.width - (roundedBorderInsideRadius + 5), watermarkBase.y + watermarkBase.height);
-            else
-                draw.FilledRect(watermarkBase.x + watermarkBase.width, watermarkBase.y + watermarkBase.height - watermarkBase.rSize, watermarkBase.x + watermarkBase.width - watermarkBase.rOutsideRad, watermarkBase.y + watermarkBase.height);
-                draw.FilledRect(watermarkBase.x + watermarkBase.width - watermarkBase.rSize, watermarkBase.y + watermarkBase.height, watermarkBase.x + watermarkBase.width - watermarkBase.rOutsideRad, watermarkBase.y + watermarkBase.height - watermarkBase.rOutsideRad);
-            end;
-        end;
-        
+        drawResize(watermarkBase);
         drawFade(watermarkBase.x, watermarkBase.y, watermarkBase.width, watermarkBase.height);    
     end);
 --
 
 -- spectators list
-    local spectatorBase, spectatorData, specMe = widget.new(20, 400, 200, 80), "", 0; spectatorBase.disableAnim, spectatorBase.sizeMinY = true, 0;
+    local spectatorBase, spectatorData, specMe = widget.new(20, 400, 200 * dpi, 34 * dpi, true), "", 0; spectatorBase.disableAnim = true;
 
     callbacks.Register("Draw", "spectator", function()
         spectatorBase.handler();
@@ -708,7 +717,7 @@
 
         -- draw spectators
         draw.SetFont(fonts.small);
-        local spectators, minWidth = getSpectators(uiSecondary.spectatorSettings.teamOnly:GetValue()), 180 * dpi;
+        local spectators, minWidth, offest = getSpectators(uiSecondary.spectatorSettings.teamOnly:GetValue()), 180 * dpi, 34 * dpi;
         specMe = 0;
         if spectators ~= nil then
             for i, spectator in pairs(spectators) do
@@ -720,18 +729,24 @@
                 draw.Text(spectatorBase.x + 10 * dpi, 34 * dpi + spectatorBase.y + 20 * (i - 1) * dpi, spectator.player:GetName() .. " ➜ " .. spectator.target:GetName());
                 minWidth = getTextWidth(spectator.player:GetName() .. " ➜ " .. spectator.target:GetName()) > minWidth and getTextWidth(spectator.player:GetName() .. " ➜ " .. spectator.target:GetName()) or minWidth;
             end;
-            spectatorBase.height = #spectators * 20 * dpi + 34 * dpi;
-        else
-            spectatorBase.height = 34 * dpi;
+            offset = #spectators * 20 * dpi + 34 * dpi;
         end;
-        spectatorBase.width = minWidth + 20 * dpi;
+
+        if not uiSecondary.styleSettings.forceResize:GetValue() then
+            spectatorBase.width, spectatorBase.height = minWidth + 20 * dpi, offset;
+        else
+            drawResize(spectatorBase);
+        end;
+
+        spectatorBase.canResize = uiSecondary.styleSettings.forceResize:GetValue();
+        spectatorBase.sizeMinX, spectatorBase.sizeMinY, spectatorBase.sizeMaxX, spectatorBase.sizeMaxY = 200 * dpi, 34 * dpi, 600 * dpi, 600 * dpi;
 
         drawFade(spectatorBase.x, spectatorBase.y, spectatorBase.width, spectatorBase.height);
     end);
 --
 
 --bomb
-    local bombBase, bombData, bombInfo = widget.new(260, 400, 300, 200), "", {planting, player, plantT, plantD, plantB, defusing, draw,}; bombBase.disableAnim, bombBase.sizeMinY = true, 0;
+    local bombBase, bombData, bombInfo = widget.new(260, 400, 200 * dpi, 34 * dpi, true), "", {planting, player, plantT, plantD, plantB, defusing, draw,}; bombBase.disableAnim = true;
 
     callbacks.Register("Draw", "bomb", function()
         bombBase.handler();
@@ -787,8 +802,16 @@
             local tempColor = fadeColor({255, 255, 255}, bombColor.red, bombDamage >= entities.GetLocalPlayer():GetHealth() and 1 or (bombDamage / entities.GetLocalPlayer():GetHealth()) );
             drawTextColor(bombBase.x + 10 * dpi, bombBase.y + offset, string.format("$c!Damage$v! : $c!%s", bombDamage >= entities.GetLocalPlayer():GetHealth() and "LETHAL" or tostring(bombDamage)) , tempColor[1], tempColor[2], tempColor[3]);
             offset = offset + getTextHeight("A") + 6 * dpi;
+        end;
+
+        if not uiSecondary.styleSettings.forceResize:GetValue() then
+            bombBase.width, bombBase.height = minWidth + 20 * dpi, offset;
+        else
+            drawResize(bombBase);
         end;        
-        bombBase.width, bombBase.height = minWidth + 20 * dpi, offset;
+
+        bombBase.canResize = uiSecondary.styleSettings.forceResize:GetValue();
+        bombBase.sizeMinX, bombBase.sizeMinY, bombBase.sizeMaxX, bombBase.sizeMaxY = 200 * dpi, 34 * dpi, 600 * dpi, 600 * dpi;
 
         drawFade(bombBase.x, bombBase.y, bombBase.width, bombBase.height);
     end);
