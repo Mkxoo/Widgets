@@ -1,5 +1,12 @@
 # Changelog
 
+### 1.03
+* Fixed bugs in bomb damage calculation.
+* If you are dead, the bomb damage shown is to the player you are spectating.
+* Added an option to draw the watermark in the main menu.
+* Added Weapon Revealer.
+
+
 ### 1.02 - Hotfix
 * Fixed bugs in Force Resize option.
 
