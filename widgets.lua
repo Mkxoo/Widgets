@@ -1,10 +1,11 @@
 -- auto-updater + auto-reloader
     local updaterInfo = {
-        versionLocal = 1.03,
+        versionLocal = 1.04,
         versionOnline = http.Get("https://raw.githubusercontent.com/zer420/Widgets/main/version.txt"),
         sourceOnline = "https://raw.githubusercontent.com/zer420/Widgets/main/widgets.lua",
         workDirectory = "zerlib\\",
         name = GetScriptName(),
+        changelog = http.Get("https://raw.githubusercontent.com/zer420/Widgets/main/changelog.md"),
     };
 
     local function updater()
@@ -13,6 +14,31 @@
             file.Write(updaterInfo.workDirectory .. "reload.lua", [[local f=0;callbacks.Register("Draw",function()if f==0 then UnloadScript("]]..updaterInfo.name..[[");elseif f==1 then LoadScript("]]..updaterInfo.name..[[");end;f=f+1;end);]])
             file.Write(updaterInfo.name, http.Get(updaterInfo.sourceOnline)); LoadScript(updaterInfo.workDirectory .. "reload.lua");
     end; end; updater();
+--
+
+-- dpi & fonts
+    local dpi, dpi_scale, fonts = 0, {0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3,}, {};
+
+    callbacks.Register("Draw", "dpi", function()
+        if dpi ~= dpi_scale[gui.GetValue("adv.dpi") + 1] then
+            dpi = dpi_scale[gui.GetValue("adv.dpi") + 1];
+            fonts = {
+                reg = draw.CreateFont("Bahnschrift Bold", 22 * dpi),
+                small = draw.CreateFont("Bahnschrift Bold", 18 * dpi),
+                icon = draw.CreateFont("watermarkIcons", 22 * dpi),
+                weapon = {
+                    reg = draw.CreateFont("weaponIcons", 26 * dpi),
+                    regEquiped = draw.CreateFont("weaponIcons", 40 * dpi),
+                    small = draw.CreateFont("weaponIcons", 10 * dpi),
+                    smallEquiped = draw.CreateFont("weaponIcons", 20 * dpi),
+                },
+                changelog = {
+                    reg = draw.CreateFont("Bahnschrift", 14 * dpi),
+                    title = draw.CreateFont("Bahnschrift Bold", 18 * dpi),
+                },
+            };                
+        end;
+    end);
 --
 
 -- text functions
@@ -40,6 +66,14 @@
 
     local function getTextCenterY(height, text)
         return height / 2 - getTextHeight(text) / 2;
+    end;
+
+    local function getChangelog(text)
+        if text:find("^### ") then
+            draw.SetFont(fonts.changelog.title); return "\n" .. text:sub(5);
+        elseif text:find("^* ") then
+            draw.SetFont(fonts.changelog.reg); return "\t• " .. text:sub(3);
+        end; return text;
     end;
 --
 
@@ -76,14 +110,17 @@
 --
 
 -- ui
-    local RefMenu, editMode = gui.Reference("Misc", "Enhancement"), false;
+    local RefMenu, editMode, changelogHeight = gui.Reference("Misc", "Enhancement"), false, 0;
 
     local widgetRef = {
         feature = gui.Groupbox(RefMenu, "Widgets - Features", 328, 310, 296),
         style = gui.Groupbox(RefMenu, "Widgets - Style", 328, 310, 296),
         --keybind = gui.Groupbox(RefMenu, "Widgets - Keybinds", 328, 310, 296),
+        changelog = gui.Groupbox(RefMenu, "Widgets - Changelog", 328, 310, 296),
         data = gui.Groupbox(RefMenu, "Widgets - Data", 328, 310, 296),
     };
+
+    local text;
 
     local ui = {
         selection = gui.Combobox(RefMenu, "widget.selection", "Selection", "Features", "Style"),
@@ -107,7 +144,35 @@
             borderOpacity = gui.Slider(widgetRef.style, "widget.border.opacity", "Border Opacity", 140, 0, 255, 1),
             editMode = gui.Button(widgetRef.style, "", function() editMode = not editMode; end),
         },
-    };    
+        changelog = {
+            groupboxFix = gui.Text(widgetRef.changelog, ""),
+            changelog = gui.Custom(widgetRef.changelog, "widget.changelog", 0, 70, 264, 50, function(x1, y1, x2, y2, active)
+                local t, offset = splitString(updaterInfo.changelog, "\n"), 0; table.remove(t, 1);
+                draw.Color(255, 255, 255, 220);
+                for i, str in pairs(t) do
+                    local currentText = getChangelog(str);
+                    if currentText:find("^\n") then
+                        offset, currentText = i ~= 1 and offset + getTextHeight("") or offset, currentText:sub(2);
+                    end;
+                    if getTextWidth(currentText) > 264 * dpi then
+                        local s, n = splitString(currentText, " "), "";
+                        while getTextWidth(currentText) > 264 * dpi do
+                            n = s[#s] .. " " .. n; table.remove(s, #s); currentText = "";
+                            for __, word in pairs(s) do
+                                currentText = currentText .. word .. " ";
+                            end;
+                        end;
+                        table.insert(t, i + 1, "\t\t" .. n);
+                    end;
+                    draw.Text(x1, y1 + offset, currentText);
+                    offset = offset + getTextHeight(currentText) + 6 * dpi;
+                end;
+                changelogHeight = 70 + (offset - getTextHeight(t[#t])) / dpi;
+            end),
+        },
+    };
+    
+
 
     local uiSecondary = {
         styleColorCustomAdd = gui.Button(widgetRef.style, "Add Color To Palette", function() 
@@ -216,11 +281,11 @@
         end;
     end;
 
-    setDescription(ui, "ui"); setDescription(uiSecondary, "uiSecondary");    
+    setDescription(ui, "ui"); setDescription(uiSecondary, "uiSecondary"); 
     
     callbacks.Register("Draw", "updateUI", function()
         --local selection = uiSecondary.show.keybind:GetValue() and {"Features", "Style", "Keybinds",} or {"Features", "Style",};
-        local selection = {"Features", "Style",};
+        local selection = {"Features", "Style", "Changelog",};
         table.insert(selection, editMode and "Manual Position" or nil);
 
         ui.selection:SetOptions(unpack(selection));
@@ -228,6 +293,7 @@
         widgetRef.feature:SetInvisible(ui.selection:GetString() ~= "Features");
         widgetRef.style:SetInvisible(ui.selection:GetString() ~= "Style");
         --widgetRef.keybind:SetInvisible(ui.selection:GetString() ~= "Keybinds");
+        widgetRef.changelog:SetInvisible(ui.selection:GetString() ~= "Changelog");
         widgetRef.data:SetInvisible(ui.selection:GetString() ~= "Manual Position");
 
         ui.feature.watermarkInformation:SetInvisible(not uiSecondary.show.watermark:GetValue());
@@ -241,32 +307,12 @@
         uiSecondary.styleColorCustomAdd:SetInvisible(ui.style.colorPalette:GetValue() ~= 2);
 
         ui.style.editMode:SetName(editMode and "Disable Edit Mode" or "Enable Edit Mode");
+        ui.changelog.groupboxFix:SetPosY(changelogHeight);
 
     end);
 --
 
 -- functions
-    -- dpi & fonts
-        local dpi, dpi_scale, fonts = 0, {0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3,}, {};
-
-        callbacks.Register("Draw", "dpi", function()
-            if dpi ~= dpi_scale[gui.GetValue("adv.dpi") + 1] then
-                dpi = dpi_scale[gui.GetValue("adv.dpi") + 1];
-                fonts = {
-                    reg = draw.CreateFont("Bahnschrift Bold", 22 * dpi),
-                    small = draw.CreateFont("Bahnschrift Bold", 18 * dpi),
-                    icon = draw.CreateFont("watermarkIcons", 22 * dpi),
-                    weapon = {
-                        reg = draw.CreateFont("weaponIcons", 26 * dpi),
-                        regEquiped = draw.CreateFont("weaponIcons", 40 * dpi),
-                        small = draw.CreateFont("weaponIcons", 10 * dpi),
-                        smallEquiped = draw.CreateFont("weaponIcons", 20 * dpi),
-                    };
-                };                
-            end;
-        end);
-    --
-
     -- widget class
         local roundedBorderInsideRadius = 5;
 
@@ -708,10 +754,22 @@
         ["bomb_abortplant"] = function() bombInfo.draw, bombInfo.planting = false, false; end,
         ["bomb_begindefuse"] = function(e) bombInfo.defusing, bombInfo.player = true, client.GetPlayerNameByUserID(e:GetInt("userid")); end,
         ["bomb_abortdefuse"] = function() bombInfo.defusing = false; end,
-        ["round_officially_ended"] = function() bombInfo.draw, bombInfo.defusing, bombInfo.planting = false, false, false; end,
         ["bomb_defused"] = function() bombInfo.draw, bombInfo.defusing, bombInfo.planting = false, false, false; end,
         ["bomb_exploded"] = function() bombInfo.draw, bombInfo.defusing, bombInfo.planting = false, false, false; end,
         ["bomb_planted"] = function() bombInfo.planting, bombInfo.plantD = false, common.Time(); end,
+
+        ["round_officially_ended"] = function()
+            bombInfo.draw, bombInfo.defusing, bombInfo.planting = false, false, false;
+
+            for uid, inventory in pairs(weapons.raw) do
+                for i, item in pairs(inventory) do
+                    if item == "c4" then
+                        table.remove(inventory, i);
+                        sortWeapons(uid, weapons);
+                    end;
+                end;
+            end;
+        end,
 
         -- weapon revealer
         ["item_pickup"] = function(e)
@@ -740,15 +798,24 @@
         end;
     end; setupListener();
 
-    callbacks.Register("FireGameEvent", function(e)
+    callbacks.Register("FireGameEvent", "eventHandler", function(e)
         if eventFunctions[e:GetName()] ~= nil then
             eventFunctions[e:GetName()](e);
         end;
     end);
 --
 
+-- reset if disconnect
+    callbacks.Register("Draw", "reset", function()
+        if engine.GetMapName() == "" then
+            bombInfo, weapons = {planting, player, plantT, plantD, plantB, defusing, draw = false,}, {raw = {}, sorted = {},};
+        end;
+    end);
+--
+
+
 -- watermark
-    local watermarkBase, watermarkData, spacing = widget.new(200, 200, 550 * dpi, 80 * dpi, true), "", 0; watermarkBase.disableAnim = true;
+    local watermarkBase, watermarkData, spacing = widget.new(800, 200, 550 * dpi, 80 * dpi, true), "", 0; watermarkBase.disableAnim = true;
 
     callbacks.Register("Draw", "watermark", function()
         watermarkBase.handler();
@@ -769,12 +836,10 @@
             string = string.format(" %s:%s:%s %s", time[4] < 10 and "0" .. math.floor(time[4]) or math.floor(time[4]), time[2] < 10 and "0" .. math.floor(time[2]) or math.floor(time[2]), time[3] < 10 and "0" .. math.floor(time[3]) or math.floor(time[3]), time[5]);
         end;
         if uiSecondary.watermarkInformation.time:GetValue() then
-            num = num + 1;
-            offset = offset + drawTextIcon(watermarkBase, "A", string, offset + num * spacing, uiSecondary.watermarkSettings.clockFormat:GetValue() and "00:00:00 am" or "00:00:00");
+            offset, num = offset + drawTextIcon(watermarkBase, "A", string, offset + (num + 1) * spacing, uiSecondary.watermarkSettings.clockFormat:GetValue() and "00:00:00 am" or "00:00:00"), num + 1;
         end;
         if uiSecondary.watermarkInformation.name:GetValue() then
-            num = num + 1;
-            offset = offset + drawTextIcon(watermarkBase, "B", client.GetConVar("name"), offset + num * spacing);
+            offset, num = offset + drawTextIcon(watermarkBase, "B", client.GetConVar("name"), offset + (num + 1) * spacing), num + 1;
         end;    
         if engine.GetServerIP() == nil then
             string = "Disconnected";
@@ -789,25 +854,22 @@
         end;
         if engine.GetServerIP() ~= nil or editMode then
             if uiSecondary.watermarkInformation.server:GetValue() then
-                num = num + 1;
-                offset = offset + drawTextIcon(watermarkBase, "C", string, offset + num * spacing);
+                offset, num = offset + drawTextIcon(watermarkBase, "C", string, offset + (num + 1) * spacing), num + 1;
             end;
             if uiSecondary.watermarkInformation.ping:GetValue() then
-                num = num + 1;
-                offset = offset + drawTextIcon(watermarkBase, "D", entities.GetLocalPlayer() ~= nil and entities.GetPlayerResources():GetPropInt("m_iPing", client.GetLocalPlayerIndex()) .. "ms" or "0ms", offset + num * spacing);
+                offset, num = offset + drawTextIcon(watermarkBase, "D", entities.GetLocalPlayer() ~= nil and entities.GetPlayerResources():GetPropInt("m_iPing", client.GetLocalPlayerIndex()) .. "ms" or "0ms", offset + (num + 1) * spacing), num + 1;
             end;
         end;
         if uiSecondary.watermarkInformation.fps:GetValue() then
             if bfps + 0.5 < common.Time() then
                 tfps, bfps = fpso, common.Time();
             end;
-            num = num + 1;
-            offset = offset + drawTextIcon(watermarkBase, "E", tfps .. "fps", offset + num * spacing, "000fps");            
+            offset, num = offset + drawTextIcon(watermarkBase, "E", tfps .. "fps", offset + (num + 1) * spacing, "000fps"), num + 1;            
         end;
 
         -- misc
         if uiSecondary.watermarkSettings.autoWidth:GetValue() then
-            watermarkBase.width = offset + 10 * dpi;
+            watermarkBase.x, watermarkBase.width = watermarkBase.x - ((offset + 10 * dpi) - watermarkBase.width), offset + 10 * dpi;
         end;
         spacing, watermarkBase.sizeMinX, watermarkBase.sizeMaxX, watermarkBase.sizeMinY, watermarkBase.disableXr, watermarkBase.visible = (watermarkBase.width - (offset + 10)) / (num + 1), offset + 10, offset * 2 + 20, 30 * dpi, uiSecondary.watermarkSettings.autoWidth:GetValue(), uiSecondary.show.watermark:GetValue();
         
@@ -862,7 +924,7 @@
 --
 
 -- bomb
-    local bombBase, bombData = widget.new(260, 400, 200 * dpi, 34 * dpi, true), ""; bombBase.disableAnim = true;
+    local bombBase, bombData = widget.new(400, 100, 200 * dpi, 34 * dpi, true), ""; bombBase.disableAnim = true;
 
     callbacks.Register("Draw", "bomb", function()
         bombBase.handler();
@@ -909,7 +971,7 @@
                 if defuseTime > bombTimer then
                     tempColor = bombColor.red;
                 end;
-                drawTextColor(bombBase.x + getTextCenterX(bombBase.width, string.format("%s is defusing at B - 0.0", bombInfo.player)), bombBase.y + offset, string.format("$c!%s$v! is defusing - $c!%.1f", bombInfo.player, defuseTime), tempColor[1], tempColor[2], tempColor[3]);
+                drawTextColor(bombBase.x + getTextCenterX(bombBase.width, string.format("%s is defusing - 10.0", bombInfo.player)), bombBase.y + offset, string.format("$c!%s$v! is defusing - $c!%.1f", bombInfo.player, defuseTime), tempColor[1], tempColor[2], tempColor[3]);
                 offset = offset + getTextHeight("A") + 6 * dpi;
                 minWidth = getTextWidth(string.format("%s is defusing - 10.0", bombInfo.player)) > minWidth and getTextWidth(string.format("%s is defusing - 10.0", bombInfo.player)) or minWidth;
             end;
@@ -952,7 +1014,7 @@
         ["elite"] = true, ["nova"] = true, ["xm1014"] = true, ["sawedoff"] = true, ["m249"] = true, ["negev"] = true, ["ump45"] = true, ["bizon"] = true, ["famas"] = true, ["galilar"] = true, ["ak47"] = true, ["m4a1"] = true, ["ssg08"] = true, ["aug"] = true, ["sg556"] = true, ["awp"] = true, ["scar20"] = true, ["g3sg1"] = true, ["knife"] = true,
     };
     
-    local weaponBase, weaponData = widget.new(200, 400, 200 * dpi, 34 * dpi, true), ""; weaponBase.disableAnim = true;
+    local weaponBase, weaponData = widget.new(500, 300, 200 * dpi, 34 * dpi, true), ""; weaponBase.disableAnim = true;
 
     callbacks.Register("Draw", "weapon", function()
         weaponBase.handler();
