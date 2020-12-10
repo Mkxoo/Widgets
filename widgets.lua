@@ -1,6 +1,6 @@
 -- auto-updater + auto-reloader
     local updaterInfo = {
-        versionLocal = 1.04,
+        versionLocal = 1.05,
         versionOnline = http.Get("https://raw.githubusercontent.com/zer420/Widgets/main/version.txt"),
         sourceOnline = "https://raw.githubusercontent.com/zer420/Widgets/main/widgets.lua",
         workDirectory = "zerlib\\",
@@ -573,13 +573,17 @@
     --
 
     -- time & fps
-        local time, bTime, sTime, fps, fpso, bfps, tfps = {0, 0, 0,}, 0, 0, 0, 0, 0, 0;
+        local time, timeI, bTime, sTime, fps, fpso, bfps, tfps, filtered = {0, 0, 0,}, nil, 0, 0, 0, 0, 0, 0;
         callbacks.Register("Draw", "getTime", function()
             -- get time from web every 20 min
             if sTime == 0 or ((sTime + 1200 < common.Time()) and (entities.GetLocalPlayer() == nil or not entities.GetLocalPlayer():IsAlive())) then
                 local data = http.Get("https://time.is/");
-                if data ~= nil then
-                    for i, str in pairs(splitString(string.match(data, [[<time id="clock">(.-)</time>]]), ":")) do
+                filtered, timeI = string.match(data, [[<time id="clock">(.-)<span.->(.-)</span></time>]]);                
+                if filtered == nil then
+                    filtered = string.match(data, [[<time id="clock">(.-)</time>]])
+                end;
+                if filtered ~= nil then
+                    for i, str in pairs(splitString(filtered, ":")) do
                         time[i] = tonumber(str);
                     end;
                     sTime = common.Time();
@@ -594,8 +598,14 @@
             if time[2] >= 60 then
                 time[1], time[2] = time[1] + 1, 0;
             end;
-            if time[1] >= 24 then
-                time[1] = 0;
+            if timeI == nil then
+                if time[1] >= 24 then
+                    time[1] = 0;
+                end;
+            else
+                if time[1] >= 12 then
+                    time[1], timeI = 0, timeI == "PM" and "AM" or "PM";
+                end;
             end;
             fps = 0.9 * fps + (1.0 - 0.9) * globals.AbsoluteFrameTime();    
             fpso = math.floor((1.0 / fps) + 0.5);    
@@ -829,12 +839,16 @@
         draw.Color(255, 255, 255, 200);
         
         -- text & icons
-        local offset, num, string = 0, 0, string.format(" %s:%s:%s", time[1] < 10 and "0" .. math.floor(time[1]) or math.floor(time[1]), time[2] < 10 and "0" .. math.floor(time[2]) or math.floor(time[2]), time[3] < 10 and "0" .. math.floor(time[3]) or math.floor(time[3]));
-        if uiSecondary.watermarkSettings.clockFormat:GetValue() then
+        local offset, num, string = 0, 0, string.format(" %s:%s:%s", time[1] < 10 and "0" .. math.floor(time[1]) or math.floor(time[1]), time[2] < 10 and "0" .. math.floor(time[2]) or math.floor(time[2]), time[3] < 10 and "0" .. math.floor(time[3]) or math.floor(time[3]));        
+        if uiSecondary.watermarkSettings.clockFormat:GetValue() and timeI == nil then
             time[4] = time[1] <= 12 and time[1] or time[1] - 12;
             time[5] = time[1] <= 12 and "am" or "pm";
             string = string.format(" %s:%s:%s %s", time[4] < 10 and "0" .. math.floor(time[4]) or math.floor(time[4]), time[2] < 10 and "0" .. math.floor(time[2]) or math.floor(time[2]), time[3] < 10 and "0" .. math.floor(time[3]) or math.floor(time[3]), time[5]);
         end;
+        if timeI ~= nil then -- ghetto fix
+            string = string.format(" %s:%s:%s %s", time[1] < 10 and "0" .. math.floor(time[1]) or math.floor(time[1]), time[2] < 10 and "0" .. math.floor(time[2]) or math.floor(time[2]), time[3] < 10 and "0" .. math.floor(time[3]) or math.floor(time[3]), timeI);
+            uiSecondary.watermarkSettings.clockFormat:SetValue(true); uiSecondary.watermarkSettings.clockFormat:SetDisabled(true);
+        end;        
         if uiSecondary.watermarkInformation.time:GetValue() then
             offset, num = offset + drawTextIcon(watermarkBase, "A", string, offset + (num + 1) * spacing, uiSecondary.watermarkSettings.clockFormat:GetValue() and "00:00:00 am" or "00:00:00"), num + 1;
         end;
@@ -890,7 +904,7 @@
         spectatorData = configHandler(spectatorBase, spectatorData, uiData.spectator);
 
         drawBackground(spectatorBase);
-        draw.Color(255, 255, 255, 200);        
+        draw.Color(255, 255, 255, 200);
         drawTitle(spectatorBase, "F", specMe == 0 and "Spectators list" or "Spectators list (" .. specMe .. ")");
 
         -- draw spectators
