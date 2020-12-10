@@ -1,5 +1,8 @@
 # Changelog
 
+### 1.05 - Hotfix
+* Potentially fixed an issue for US users.
+
 ### 1.04
 * Fixed player defusing not being centered.
 * Various fixes to the Weapon Revealer.
